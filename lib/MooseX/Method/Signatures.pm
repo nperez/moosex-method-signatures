@@ -13,7 +13,7 @@ use MooseX::Method::Signatures::Meta::Method;
 use Sub::Name;
 use Carp;
 
-use aliased 'Devel::Declare::MethodInstaller::Simple', 'MethodInstaller';
+use aliased 'Devel::Declare::Context::Simple', 'DDContext';
 
 use namespace::autoclean;
 
@@ -27,7 +27,7 @@ has package => (
 
 has context => (
     is      => 'ro',
-    isa     => MethodInstaller,
+    isa     => DDContext,
     lazy    => 1,
     builder => '_build_context',
 );
@@ -57,9 +57,8 @@ sub import {
 
 sub setup_for {
     my ($class, $pkg) = @_;
-
     my $self = $class->new(package => $pkg);
-
+    
     Devel::Declare->setup_for($pkg, {
         method => { const => sub { $self->parser(@_) } },
     });
@@ -73,7 +72,7 @@ sub setup_for {
 }
 
 sub strip_name {
-    my ($self) = @_;
+    my $self = shift;
     my $ctx = $self->context;
     my $ret = $ctx->strip_name;
     return $ret if defined $ret;
@@ -121,7 +120,7 @@ sub strip_traits {
 }
 
 sub strip_return_type_constraint {
-    my ($self) = @_;
+    my $self = shift;
     my $ctx = $self->context;
     my $returns = $ctx->strip_name;
     return unless defined $returns;
@@ -153,7 +152,7 @@ sub _parser {
     $ctx->skip_declarator;
     my $name   = $self->strip_name;
     my $proto  = $ctx->strip_proto;
-    my $attrs  = $ctx->strip_attrs || '';
+    my $attrs  = $self->strip_attrs || '';
     my $traits = $self->strip_traits;
     my $ret_tc = $self->strip_return_type_constraint;
 
@@ -169,14 +168,14 @@ sub _parser {
     $args{traits} = $traits if defined $traits && scalar(@{ $traits });
     $args{return_signature} = $ret_tc if defined $ret_tc;
     my $method = MooseX::Method::Signatures::Meta::Method->wrap(%args);
-
+    
     my $after_block = ')';
 
     if (defined $name) {
         my $name_arg = q{, } . (ref $name ? ${$name} : qq{q[${name}]});
         $after_block = $name_arg . $after_block . q{;};
     }
-
+    
     my $inject = $method->injectable_code;
     $inject = $self->scope_injector_call($after_block) . $inject;
 

@@ -129,6 +129,53 @@ sub strip_return_type_constraint {
     return $ctx->strip_proto;
 }
 
+sub strip_attrs {
+  my $self = shift;
+  my $ctx = $self->context;
+  $ctx->skipspace;
+
+  my $linestr = Devel::Declare::get_linestr;
+  my $attrs   = '';
+
+  if (substr($linestr, $ctx->offset, 1) eq ':') {
+    while (substr($linestr, $ctx->offset, 1) ne '{') {
+      if (substr($linestr, $ctx->offset, 1) eq ':') {
+        substr($linestr, $ctx->offset, 1) = '';
+        Devel::Declare::set_linestr($linestr);
+
+        $attrs .= ':';
+      }
+
+      $ctx->skipspace;
+      $linestr = Devel::Declare::get_linestr();
+
+      if (my $len = Devel::Declare::toke_scan_word($ctx->offset, 0)) {
+        my $name = substr($linestr, $ctx->offset, $len);
+        substr($linestr, $ctx->offset, $len) = '';
+        Devel::Declare::set_linestr($linestr);
+
+        $attrs .= " ${name}";
+
+        if (substr($linestr, $ctx->offset, 1) eq '(') {
+          my $length = Devel::Declare::toke_scan_str($ctx->offset);
+          my $arg    = Devel::Declare::get_lex_stuff();
+          Devel::Declare::clear_lex_stuff();
+          $linestr = Devel::Declare::get_linestr();
+          substr($linestr, $ctx->offset, $length) = '';
+          Devel::Declare::set_linestr($linestr);
+
+          $attrs .= "(${arg})";
+        }
+      }
+    }
+
+    $linestr = Devel::Declare::get_linestr();
+  }
+
+  return $attrs;
+}
+
+
 sub parser {
     my $self = shift;
     my $err;

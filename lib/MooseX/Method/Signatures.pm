@@ -10,6 +10,7 @@ use Moose::Meta::Class;
 use MooseX::Types::Moose qw/Str Bool CodeRef/;
 use Text::Balanced qw/extract_quotelike/;
 use MooseX::Method::Signatures::Meta::Method;
+use MooseX::Method::Signatures::Types(':all');
 use Sub::Name;
 use Carp;
 
@@ -32,16 +33,25 @@ has context => (
     builder => '_build_context',
 );
 
-has initialized_context => (
-    is      => 'ro',
-    isa     => Bool,
+has initialized_context =>
+(
+    is => 'rw',
+    isa => 'Bool',
     default => 0,
 );
 
-has custom_method_application => (
-    is        => 'ro',
-    isa       => 'CodeRef',
-    predicate => 'has_custom_method_application'
+has custom_method_application =>
+(
+    is => 'rw',
+    isa => 'CodeRef',
+    predicate => 'has_custom_method_application',
+);
+
+has prototype_injections => 
+(
+    is => 'rw',
+    isa => PrototypeInjections,
+    predicate => 'has_prototype_injections',
 );
 
 sub _build_context {
@@ -50,15 +60,35 @@ sub _build_context {
 }
 
 sub import {
-    my ($class) = @_;
+    my ($class, %args) = @_;
     my $caller = caller();
-    $class->setup_for($caller);
+    $class->setup_for($caller, \%args);
 }
 
 sub setup_for {
-    my ($class, $pkg) = @_;
-    my $self = $class->new(package => $pkg);
+    my ($class, $pkg, $args) = @_;
     
+    # process arguments to import
+    while(my ($declarator, $injections) = each(%$args))
+    {
+        my $obj = $class->new
+        (
+            context => DDContext->new(into => $pkg),
+            prototype_injections => { declarator => $declarator, injections => $injections },
+        );
+        
+        Devel::Declare->setup_for($pkg, {
+            $declarator => { const => sub { $obj->parser(@_) } },
+        });
+
+        {
+            no strict 'refs';
+            *{ "${pkg}::$declarator" } = sub {};
+        }
+    }
+
+    my $self = $class->new(context => DDContext->new(into => $pkg));
+
     Devel::Declare->setup_for($pkg, {
         method => { const => sub { $self->parser(@_) } },
     });
@@ -214,6 +244,14 @@ sub _parser {
     );
     $args{traits} = $traits if defined $traits && scalar(@{ $traits });
     $args{return_signature} = $ret_tc if defined $ret_tc;
+    
+    if( $self->has_prototype_injections )
+    {
+        confess('Configured declarator does not match context declarator')
+            if $ctx->declarator ne $self->prototype_injections->{'declarator'};
+        $args{prototype_injections} = $self->prototype_injections->{'injections'};
+    }
+
     my $method = MooseX::Method::Signatures::Meta::Method->wrap(%args);
     
     my $after_block = ')';
@@ -587,6 +625,8 @@ With contributions from:
 =item Steffen Schwigon E<lt>ss5@renormalist.netE<gt>
 
 =item Yanick Champoux E<lt>yanick@babyl.dyndns.orgE<gt>
+
+=item Nicholas Perez E<lt>nperez@cpan.orgE<gt>
 
 =back
 

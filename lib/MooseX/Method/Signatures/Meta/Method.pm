@@ -273,7 +273,7 @@ sub _parse_prototype_injections {
             $param = Parse::Method::Signatures->param($inject);
         };
         
-        confess("There was a problem parsing the prototype injection '$inject': $@") if $@;
+        confess("There was a problem parsing the prototype injection '$inject': $@") if $@ or not defined($param);
 
         push(@params, $param);
     }

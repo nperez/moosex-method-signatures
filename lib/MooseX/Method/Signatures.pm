@@ -93,6 +93,33 @@ sub strip_name {
     return \$str;
 }
 
+sub strip_traits {
+    my ($self) = @_;
+
+    my $ctx = $self->context;
+    my $linestr = $ctx->get_linestr;
+
+    unless (substr($linestr, $ctx->offset, 2) eq 'is') {
+        # No is means no traits, return an empty arrayref
+        return [];
+    }
+
+    my @traits = ();
+    while (substr($linestr, $ctx->offset, 2) eq 'is') {
+        # Eat the 'is' so we can call strip_names_and_args
+        substr($linestr, $ctx->offset, 2) = '';
+        $ctx->set_linestr($linestr);
+        push(@traits, @{ $ctx->strip_names_and_args });
+        # Get the current linestr so that the loop can look for more 'is'
+        $linestr = $ctx->get_linestr;
+    }
+
+    confess "expected traits after 'is', found nothing"
+        unless scalar(@traits);
+
+    return \@traits;
+}
+
 sub strip_return_type_constraint {
     my ($self) = @_;
     my $ctx = $self->context;
@@ -127,6 +154,7 @@ sub _parser {
     my $name   = $self->strip_name;
     my $proto  = $ctx->strip_proto;
     my $attrs  = $ctx->strip_attrs || '';
+    my $traits = $self->strip_traits;
     my $ret_tc = $self->strip_return_type_constraint;
 
     my $compile_stash = $ctx->get_curstash_name;
@@ -138,6 +166,7 @@ sub _parser {
       # symbols at compile time
       package_name => $compile_stash,
     );
+    $args{traits} = $traits if defined $traits && scalar(@{ $traits });
     $args{return_signature} = $ret_tc if defined $ret_tc;
     my $method = MooseX::Method::Signatures::Meta::Method->wrap(%args);
 

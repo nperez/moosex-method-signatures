@@ -144,6 +144,16 @@ sub strip_traits {
 
     confess "expected traits after 'is', found nothing"
         unless scalar(@traits);
+    
+    foreach my $t (@traits)
+    {
+        # Let's check to make sure these traits aren't aliased locally
+        eval
+        {
+            no strict 'refs';
+            $t->[0] = *{$ctx->get_curstash_name .'::'.$t->[0]}{CODE}->();
+        };
+    }
 
     return \@traits;
 }

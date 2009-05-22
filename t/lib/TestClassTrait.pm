@@ -2,30 +2,26 @@ package TestClassTrait;
 use Moose;
 use MooseX::Method::Signatures;
 
-use MXMSMoody;
-use MXMSLabeled;
+use aliased 'MXMSLabeled', 'Label';
+use aliased 'MXMSMoody', 'Moody';
 
-<<<<<<< HEAD:t/lib/TestClassTrait.pm
-method method_with_trait(Str :$name!) is MXMSMoody {
-=======
-method method_with_trait(Str :$name!) is (MXMSMoody) {
->>>>>>> c19acca... Implement method traits using new strip_names_and_args from Devel::Declare:t/lib/TestClassTrait.pm
+method method_with_trait(Str :$name!) is Moody {
 
     return 1;
 }
 
-method method_with_two_traits() is (MXMSMoody, MXMSLabeled) {
+method method_with_two_traits() is (Moody, Label) {
 
     return 1;
 }
 
-method method_with_two_is_traits() is MXMSMoody is MXMSLabeled {
+method method_with_two_is_traits() is Moody is Label {
 
     return 1;
 }
 
-method method_with_two_is_param_traits() is MXMSMoody
-    is MXMSLabeled(label => 'happy') {
+method method_with_two_is_param_traits() is Moody
+    is Label(label => 'happy') {
 
     return 1;
 }

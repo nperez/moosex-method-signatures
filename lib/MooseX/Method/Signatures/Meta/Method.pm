@@ -105,6 +105,12 @@ has _parsed_prototype_injections => (
     writer      => '_set_parsed_prototype_injections',
 );
 
+has traits => (
+    is          => 'ro',
+    isa         => ArrayRef[Str],
+    predicate   => 'has_traits',
+);
+
 before actual_body => sub {
     my ($self) = @_;
     confess "method doesn't have an actual body yet"
@@ -174,6 +180,7 @@ sub wrap {
         );
         $meta->add_method(meta => sub { $meta });
         $class = $meta->name;
+        $args{traits} = \@traits;
     }
 
     $self = $class->_new(%args, body => $to_wrap );

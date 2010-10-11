@@ -106,6 +106,16 @@ sub strip_name {
     return $ret if defined $ret;
 
     my $line = $ctx->get_linestr;
+    if (substr($line, $ctx->offset, 1) eq '[') {
+        my $length = Devel::Declare::toke_scan_str($ctx->offset);
+        my $aref = Devel::Declare::get_lex_stuff();
+        Devel::Declare::clear_lex_stuff();
+        $line = $ctx->get_linestr();
+        substr($line, $ctx->offset, $length) = '';
+        $ctx->set_linestr($line);
+        return "[$aref]";
+    }
+    
     my $offset = $ctx->offset;
     local $@;
     my $copy = substr($line, $offset);
@@ -222,7 +232,15 @@ sub _parser {
     $args{ return_signature } = $ret_tc      if defined $ret_tc;
 
     # Class::MOP::Method requires a name
-    $args{ name             } = $name || '__ANON__'.($anon_counter++).'__';
+    if(defined($name)) {
+        if($name =~ m/\[.+\]/) {
+            $args{name} = '__ANON__'.($anon_counter++).'__';
+        } else {
+            $args{name} = $name;
+        }
+    } else {
+        $args{name} = '__ANON__'.($anon_counter++).'__';
+    }
 
     if ($self->has_prototype_injections) {
         confess('Configured declarator does not match context declarator')
@@ -260,7 +278,16 @@ sub _parser {
     }
 
     if (defined $name) {
-        my $name_arg = q{, } . (ref $name ? ${$name} : qq{q[${name}]});
+        my $name_arg = q{, };
+        if (ref $name) {
+            $name_arg .= ${$name};
+        } else {
+            if ($name =~ m/\[.+\]/) {
+                $name_arg .= $name;
+            } else {
+                $name_arg .= qq{q[${name}]};
+            }
+        }
         $after_block = $name_arg . $after_block . q{;};
     }
 

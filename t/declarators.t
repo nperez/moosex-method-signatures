@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 16;
+use Test::More tests => 17;
 
 package MultipleDeclarators;
 
@@ -8,7 +8,8 @@ use Moose;
 use MooseX::Method::Signatures
     mtfnpy => ['CodeRef $flarg'],
     qperty => ['Str $goof'],
-    zorbwf => ['HashRef $hakh'];
+    zorbwf => ['HashRef $hakh'],
+    aflatt => ['CodeRef $orig'];
 use Test::More;
 
 mtfnpy foo (Int $yarg) {
@@ -36,6 +37,8 @@ zorbwf baz (Int $yarg) {
     is($yarg, 1, '$yarg is 1');
 }
 
+aflatt [qw/foo bar baz/] { 1 }
+
 package main;
 
 my $md = MultipleDeclarators->new();
@@ -52,3 +55,6 @@ my ($mtfnpy, $qperty, $zorbwf);
 $mtfnpy->(sub { 1 }, $md, 1);
 $qperty->('HELLO', 'MultipleDeclarators', 1);
 $zorbwf->({}, $md, 1);
+
+my $aref_name = (grep {/ARRAY/} $md->meta->get_method_list)[0];
+ok(defined($aref_name), 'Passing array references to declarators works');
